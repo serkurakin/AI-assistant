@@ -1,0 +1,14 @@
+.env
+myenv/
+articles/
+chroma_db/
+knowledge_base.txt
+.cursorignore
+__pycache__/
+bot_local.py
+bot_local_2_with_memory.py
+bot_v2.py
+bot.py
+rag.py
+
+

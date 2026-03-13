@@ -1,0 +1,13 @@
+dotenv==0.9.9
+telebot==0.0.5
+langchain==1.2.10
+langchain_openai==1.1.10
+langchain-classic==1.0.1
+langchain-community==0.4.1
+langchain-classic==1.0.1
+langchain-core==1.2.18
+langchain-text-splitters==1.1.1
+chromadb==1.5.2
+sentence-transformers==5.2.3
+pypdf==6.7.5
+tavily-python==0.7.22
