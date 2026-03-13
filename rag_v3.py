@@ -4,7 +4,7 @@ from chromadb.utils import embedding_functions
 from pypdf import PdfReader
 from glob import glob
 import os
-
+import re
 # Папка с PDF
 pdf_folder = r"E:\llm_bot\articles"
 
@@ -17,6 +17,20 @@ text_splitter = RecursiveCharacterTextSplitter(
     length_function=len,
     separators=['\n\n', '\n', '.', '!', '?', ' ', '', ';', ':']
 )
+
+# функция очистки текста
+def clean_extracted_text(text: str) -> str:
+    
+    # Убираем переносы слов (дефис в конце строки)
+    text = re.sub(r'(\w+)-\s*\n\s*(\w+)', r'\1\2', text)
+    
+    # Заменяем любые последовательности пробелов и переносов на один пробел
+    text = re.sub(r'\s+', ' ', text)
+    
+    # удаляем управляющие символы (control characters)
+    text = re.sub(r'[\x00-\x1F\x7F]', '', text)
+    
+    return text.strip()
 
 # 1. Читаем файлы по одному
 for pdf_path in glob(os.path.join(pdf_folder, "*.pdf")):
@@ -37,9 +51,13 @@ for pdf_path in glob(os.path.join(pdf_folder, "*.pdf")):
             
         full_text = "\n".join(text_parts)
         
-        # ЛОГИКА ОЧИСТКИ
+        # очистка текста сразу после объединения страниц
+        full_text = clean_extracted_text(full_text)
+
+        # Отсечение списка литературы
         # Список возможных заголовков раздела литературы
-        ref_keywords = ["References", "REFERENCES", "Список литературы", "СПИСОК ЛИТЕРАТУРЫ", "LITERATURE CITED", "LITERATURE", "Literature"]
+        ref_keywords = ["References", "REFERENCES", "Список литературы", "СПИСОК ЛИТЕРАТУРЫ", "Литература", 
+        "ЛИТЕРАТУРА", "LITERATURE CITED", "LITERATURE", "Literature"]
         
         # Ищем самое последнее вхождение одного из ключевых слов
         cut_index = -1
