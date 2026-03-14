@@ -46,7 +46,7 @@ for pdf_path in glob(os.path.join(pdf_folder, "*.pdf")):
                 text_parts.append(page_text)
         
         if not text_parts:
-            print(f" В файле {file_name} нет текста (возможно, сканированный PDF)")
+            print(f" В файле {file_name} нет текста")
             continue
             
         full_text = "\n".join(text_parts)
