@@ -3,12 +3,12 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 import chromadb
 from chromadb.utils import embedding_functions
-#from pypdf import PdfReader
 from docling.document_converter import DocumentConverter
 from glob import glob
 import os
 import re
 from dotenv import load_dotenv
+#from pypdf import PdfReader
 
 load_dotenv()
 
@@ -55,9 +55,9 @@ def extract_key_sections(text: str) -> str:
     """Извлекает только ключевые разделы статьи для суммаризации."""
     # Регулярные выражения для поиска заголовков (регистронезависимо)
     sections = {
-        "Abstract": r"(?i)(#+\s*Abstract|#+\s*Аннотация|#+\s*Резюме)",
-        "Methods": r"(?i)(#+\s*Materials\s+and\s+Methods|#+\s*Methods|#+\s*Методы\s+и\s+материалы)",
-        "Conclusion": r"(?i)(#+\s*Conclusion|#+\s*Conclusions|#+\s*Заключение|#+\s*Выводы)"
+        "Abstract": r"(?i)(^|\n)\s*(Abstract|Аннотация|Резюме)\s*(\n|$)",
+        "Methods": r"(?i)(^|\n)\s*(Materials?\s+and\s+Methods?|Methods?|Experimental|Материалы?\s+и\s+Методы?|Методы|Материалы)\s*(\n|$)",
+        "Conclusion": r"(?i)(^|\n)\s*(Conclusion|Conclusions|Заключение|Выводы)\s*(\n|$)"
     }
     
     extracted_content = ""
@@ -66,10 +66,9 @@ def extract_key_sections(text: str) -> str:
         match = re.search(pattern, text)
         if match:
             start_idx = match.start()
-            # Берем текст от заголовка и следующие 4000 символов 
-            # (или до следующего крупного заголовка)
-            section_chunk = text[start_idx : start_idx + 4000]
-            extracted_content += f"\n\n--- РАЗДЕЛ {section_name} ---\n{section_chunk}"
+            # Берем текст от заголовка и следующие 6000 символов (или до следующего крупного заголовка)
+            section_chunk = text[start_idx : start_idx + 6000]
+            extracted_content += f"\n\n РАЗДЕЛ {section_name}\n{section_chunk}"
             
     # Если ничего не нашли, берем начало и конец статьи
     if len(extracted_content) < 500:
@@ -81,7 +80,7 @@ def extract_key_sections(text: str) -> str:
 def generate_summary(full_markdown_text: str) -> str:
     """Генерирует резюме на основе только ключевых разделов."""
     
-    # 1. Вырезаем только важное
+    # 1. Вырезаем только важное, применив функцию
     content_for_summary = extract_key_sections(full_markdown_text)
     
     prompt = f"""Ты - научный эксперт. 
@@ -124,8 +123,13 @@ for pdf_path in glob(os.path.join(pdf_folder, "*.pdf")):
         summary_text = generate_summary(full_text)
         
         if summary_text:
-            all_chunks.append(f"ОБЩЕЕ РЕЗЮМЕ СТАТЬИ {file_name}:\n{summary_text}")
-            all_metadatas.append({"source": file_name, "type": "summary"})
+            # Добавляем с маркерами для точной идентификации
+            all_chunks.append(f"НАЧАЛО РЕЗЮМЕ СТАТЬИ {file_name} \n{summary_text}\n КОНЕЦ РЕЗЮМЕ СТАТЬИ {file_name}")
+            all_metadatas.append({
+                "source": file_name, 
+                "is_summary": True,  # булевый флаг для фильтрации
+                "chunk_type": "summary"  # строковый тип для идентификации
+            })
 
         # Очистка текста
         full_text = clean_extracted_text(full_text)
@@ -152,11 +156,13 @@ for pdf_path in glob(os.path.join(pdf_folder, "*.pdf")):
         
         # Для каждого чанка создаем метаданные с именем файла
         for chunk in file_chunks:
-            if chunk and chunk.strip() and len(chunk.strip()) > 50: # игнорируем совсем мелкий мусор, пропускаем пустые чанки
+            if chunk and chunk.strip() and len(chunk.strip()) > 50:
                 all_chunks.append(chunk)
                 all_metadatas.append({
                     "source": file_name,
-                    "page_count": result.document.pages_count if hasattr(result.document, 'pages_count') else 0
+                    "page_count": result.document.pages_count if hasattr(result.document, 'pages_count') else 0,
+                    "is_summary": False,  # явно указываем, что это не резюме
+                    "chunk_type": "content"
                 })
             
         print(f" {file_name}: {len(file_chunks)} чанков")
